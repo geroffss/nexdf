@@ -1,0 +1,15 @@
+{
+  "name": "pdf-templater-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run -ws build",
+    "dev:web": "npm run -w @examples/web dev",
+    "build:lib": "npm run -w nexdf build",
+    "typecheck": "npm run -ws typecheck"
+  }
+}
