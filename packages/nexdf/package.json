@@ -1,6 +1,6 @@
 {
   "name": "nexdf",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Plug-and-play Next.js PDF endpoint with customizable HTML/HTMX templates",
   "license": "MIT",
   "keywords": [
