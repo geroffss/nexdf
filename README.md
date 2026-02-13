@@ -9,6 +9,7 @@ Plug-and-play npm library for Next.js that lets users create PDFs from customiza
 - Unlimited placeholders using Handlebars (`{{anyField}}`)
 - Server-side PDF generation in Node.js runtime
 - User-editable template files in their own app
+- Optional DB-backed template loading (`templateKey`) with file fallback
 
 ## Workspace structure
 
@@ -41,6 +42,7 @@ curl -X POST http://localhost:3000/api/pdf \
   -H "content-type: application/json" \
   -d '{
     "filename": "invoice.pdf",
+    "templateKey": "basic",
     "data": {
       "title": "Invoice #001",
       "subtitle": "Example",
@@ -71,6 +73,31 @@ Then provide those values in the JSON body under `data`.
 ## HTMX compatibility
 
 Templates are regular HTML and support HTMX attributes (`hx-*`) in markup.
+
+## Database templates (migration-based)
+
+You can keep templates in a DB table and render from DB on each request.
+
+- Demo includes SQL migration: `apps/web/db/migrations/001_create_pdf_templates.sql`
+- Demo route resolves templates from DB first, then falls back to file templates
+- Use `templateKey` in request body to pick which DB template to render
+
+Resolution order used by the demo route:
+
+1. Try DB template via `templateKey`
+2. If not found, fallback to file template via `templatePath` / `defaultTemplate`
+
+Example request body:
+
+```json
+{
+  "filename": "document.pdf",
+  "templateKey": "basic",
+  "data": {
+    "title": "Any value"
+  }
+}
+```
 
 ## Local development
 
@@ -117,9 +144,14 @@ Note: true zero cold start is not possible when a server process/container is ne
 ```json
 {
   "filename": "document.pdf",
+  "templateKey": "basic",
   "templatePath": "basic.html",
   "data": {
     "title": "Any value"
   }
 }
 ```
+
+- `templateKey`: optional, used by DB resolver
+- `templatePath`: optional, file template fallback
+- `data`: placeholder values for Handlebars

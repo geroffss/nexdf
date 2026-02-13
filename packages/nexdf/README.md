@@ -9,6 +9,7 @@ Plug-and-play PDF generation for Next.js using customizable HTML/HTMX templates 
 - Tailwind-friendly templates you can edit directly
 - A4-ready default template
 - Fast runtime path: browser prewarm + page pool reuse + template compile cache
+- Optional DB template resolver with file-template fallback
 
 ## Install
 
@@ -50,6 +51,7 @@ curl -X POST http://localhost:3000/api/pdf \
   -H "content-type: application/json" \
   -d '{
     "filename": "invoice.pdf",
+    "templateKey": "basic",
     "templatePath": "basic.html",
     "data": {
       "title": "Invoice #001",
@@ -86,12 +88,21 @@ Body:
 ```json
 {
   "filename": "document.pdf",
+  "templateKey": "basic",
   "templatePath": "basic.html",
   "data": {
     "title": "Any value"
   }
 }
 ```
+
+`templateKey` is available when you use a custom template resolver.
+
+Template resolution behavior:
+
+1. If `resolveTemplate` returns HTML, that HTML is rendered.
+2. If `resolveTemplate` returns `null`, file-template rendering is used.
+3. File-template path is `templatePath` or `defaultTemplate`.
 
 ## Runtime requirements
 
@@ -123,4 +134,36 @@ export const POST = createPdfRouteHandler({
   defaultTemplate: "basic.html",
   poolSize: 2
 });
+```
+
+## Database-backed templates
+
+Use `resolveTemplate` to fetch HTML from DB and render server-side:
+
+```ts
+export const POST = createPdfRouteHandler({
+  templatesDir: process.cwd() + "/templates/pdf",
+  defaultTemplate: "basic.html",
+  poolSize: 2,
+  resolveTemplate: async ({ body }) => {
+    const templateKey = body.templateKey ?? "basic";
+    const html = await loadTemplateHtmlFromDb(templateKey);
+    return html;
+  }
+});
+```
+
+If `resolveTemplate` returns `null`, file-based template loading is used as fallback.
+
+Example request body with DB-first + file fallback support:
+
+```json
+{
+  "filename": "document.pdf",
+  "templateKey": "basic",
+  "templatePath": "basic.html",
+  "data": {
+    "title": "Any value"
+  }
+}
 ```

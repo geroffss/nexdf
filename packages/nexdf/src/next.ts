@@ -2,12 +2,19 @@ import { access } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import path from "node:path";
 import { generatePdfBuffer, prewarmPdfEngine } from "./pdf";
-import { renderTemplateFile, type TemplateData } from "./template";
+import { renderTemplateFile, renderTemplateString, type TemplateData } from "./template";
 
 export type PdfRequestBody = {
   data?: TemplateData;
   templatePath?: string;
+  templateKey?: string;
   filename?: string;
+};
+
+export type ResolveTemplateContext = {
+  body: PdfRequestBody;
+  templatesDir: string;
+  defaultTemplate: string;
 };
 
 export type CreatePdfRouteHandlerOptions = {
@@ -15,6 +22,7 @@ export type CreatePdfRouteHandlerOptions = {
   defaultTemplate?: string;
   prewarm?: boolean;
   poolSize?: number;
+  resolveTemplate?: (context: ResolveTemplateContext) => Promise<string | null>;
 };
 
 const DEFAULT_TEMPLATE_NAME = "basic.html";
@@ -32,19 +40,34 @@ export function createPdfRouteHandler(options: CreatePdfRouteHandlerOptions = {}
     try {
       const body = (await request.json()) as PdfRequestBody;
       const filename = body.filename || "document.pdf";
-      const templateName = body.templatePath || defaultTemplate;
-      const safeTemplatePath = path.resolve(templatesDir, templateName);
+      const resolvedTemplate = options.resolveTemplate
+        ? await options.resolveTemplate({
+            body,
+            templatesDir,
+            defaultTemplate
+          })
+        : null;
 
-      if (!safeTemplatePath.startsWith(path.resolve(templatesDir))) {
-        return Response.json(
-          { error: "Invalid templatePath. Template must be inside templates directory." },
-          { status: 400 }
-        );
+      let html: string;
+
+      if (resolvedTemplate) {
+        html = renderTemplateString(resolvedTemplate, body.data ?? {});
+      } else {
+        const templateName = body.templatePath || defaultTemplate;
+        const safeTemplatePath = path.resolve(templatesDir, templateName);
+
+        if (!safeTemplatePath.startsWith(path.resolve(templatesDir))) {
+          return Response.json(
+            { error: "Invalid templatePath. Template must be inside templates directory." },
+            { status: 400 }
+          );
+        }
+
+        await access(safeTemplatePath, fsConstants.R_OK);
+
+        html = await renderTemplateFile(safeTemplatePath, body.data ?? {});
       }
 
-      await access(safeTemplatePath, fsConstants.R_OK);
-
-      const html = await renderTemplateFile(safeTemplatePath, body.data ?? {});
       const pdfBuffer = await generatePdfBuffer({ html });
 
       return new Response(new Uint8Array(pdfBuffer), {
