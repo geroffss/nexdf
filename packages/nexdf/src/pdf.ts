@@ -1,7 +1,11 @@
 import puppeteer, { type Browser, type PDFOptions, type Page } from "puppeteer-core";
+import { generateNativePdfBuffer } from "./native";
+
+export type PdfEngine = "chromium" | "native";
 
 export type GeneratePdfInput = {
   html: string;
+  engine?: PdfEngine;
   pdf?: PDFOptions;
   executablePath?: string;
 };
@@ -126,6 +130,10 @@ process.once("SIGTERM", () => {
 });
 
 export async function generatePdfBuffer(input: GeneratePdfInput): Promise<Buffer> {
+  if (input.engine === "native") {
+    return generateNativePdfBuffer(input.html);
+  }
+
   const executablePath = getExecutablePath(input.executablePath);
 
   const browser = await getBrowser(executablePath);

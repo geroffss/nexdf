@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 
+type PdfEngine = "chromium" | "native";
+
 export default function HomePage() {
+  const [engine, setEngine] = useState<PdfEngine>("chromium");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +20,10 @@ export default function HomePage() {
           "content-type": "application/json"
         },
         body: JSON.stringify({
-          filename: "invoice.pdf",
+          filename: `invoice-${engine}.pdf`,
+          engine,
+          templatePath: engine === "native" ? "native.html" : "basic.html",
+          templateKey: engine === "native" ? "native" : "basic",
           data: {
             title: "Invoice #INV-2026-001",
             subtitle: "Thank you for your business",
@@ -25,7 +31,10 @@ export default function HomePage() {
             fromEmail: "billing@acme.studio",
             toName: "Jane Doe",
             toEmail: "jane@example.com",
-            summary: "You can customize this template freely with Tailwind classes and unlimited Handlebars placeholders.",
+            summary:
+              engine === "native"
+                ? "Fast native renderer with classic CSS classes."
+                : "Chromium renderer with Tailwind and full browser CSS support.",
             generatedAt: new Date().toISOString().slice(0, 10)
           }
         })
@@ -40,7 +49,7 @@ export default function HomePage() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = "invoice.pdf";
+      anchor.download = `invoice-${engine}.pdf`;
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -53,14 +62,36 @@ export default function HomePage() {
   return (
     <main className="mx-auto max-w-2xl p-10">
       <h1 className="text-3xl font-bold">Next PDF Templater</h1>
-      <p className="mt-3 text-gray-700">Edit templates in templates/pdf/basic.html and hit the endpoint.</p>
+      <p className="mt-3 text-gray-700">Pick engine, then generate and compare output/speed.</p>
+      <div className="mt-6 flex gap-3">
+        <button
+          type="button"
+          onClick={() => setEngine("chromium")}
+          disabled={isLoading}
+          className={`rounded border px-4 py-2 text-sm ${
+            engine === "chromium" ? "border-black bg-black text-white" : "border-gray-300 bg-white text-black"
+          }`}
+        >
+          Chromium (Tailwind, slower)
+        </button>
+        <button
+          type="button"
+          onClick={() => setEngine("native")}
+          disabled={isLoading}
+          className={`rounded border px-4 py-2 text-sm ${
+            engine === "native" ? "border-black bg-black text-white" : "border-gray-300 bg-white text-black"
+          }`}
+        >
+          Native (classic CSS, fast)
+        </button>
+      </div>
       <button
         type="button"
         onClick={createPdf}
         disabled={isLoading}
         className="mt-6 rounded bg-black px-5 py-3 text-white disabled:opacity-60"
       >
-        {isLoading ? "Generating..." : "Generate PDF"}
+        {isLoading ? "Generating..." : `Generate ${engine} PDF`}
       </button>
       {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
     </main>

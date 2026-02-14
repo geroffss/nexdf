@@ -8,6 +8,7 @@ const cwd = process.cwd();
 const routeFilePath = path.join(cwd, "app", "api", "pdf", "route.ts");
 const templateDir = path.join(cwd, "templates", "pdf");
 const templatePath = path.join(templateDir, "basic.html");
+const nativeTemplatePath = path.join(templateDir, "native.html");
 
 const routeTemplate = `import { createPdfRouteHandler } from "nexdf";
 
@@ -16,6 +17,7 @@ export const runtime = "nodejs";
 export const POST = createPdfRouteHandler({
   templatesDir: process.cwd() + "/templates/pdf",
   defaultTemplate: "basic.html",
+  defaultEngine: "chromium",
   poolSize: 2
 });
 `;
@@ -73,6 +75,82 @@ const defaultHtmlTemplate = `<!doctype html>
 </html>
 `;
 
+const nativeHtmlTemplate = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{title}}</title>
+    <style>
+      body {
+        font-size: 11pt;
+        color: #111827;
+      }
+
+      .document-title {
+        font-size: 24pt;
+        font-weight: 700;
+        margin-bottom: 4pt;
+      }
+
+      .document-subtitle {
+        font-size: 11pt;
+        color: #4b5563;
+        margin-bottom: 14pt;
+      }
+
+      .section-title {
+        font-size: 13pt;
+        font-weight: 700;
+        margin-top: 10pt;
+        margin-bottom: 4pt;
+      }
+
+      .muted {
+        color: #6b7280;
+      }
+
+      .small {
+        font-size: 10pt;
+      }
+
+      .row {
+        margin-bottom: 2pt;
+      }
+
+      .summary {
+        margin-top: 8pt;
+        margin-bottom: 10pt;
+        line-height: 1.55;
+      }
+
+      .footer {
+        margin-top: 18pt;
+        font-size: 9pt;
+        color: #9ca3af;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 class="document-title">{{title}}</h1>
+    <p class="document-subtitle">{{subtitle}}</p>
+
+    <h2 class="section-title">From</h2>
+    <p class="row">{{fromName}}</p>
+    <p class="row muted">{{fromEmail}}</p>
+
+    <h2 class="section-title">To</h2>
+    <p class="row">{{toName}}</p>
+    <p class="row muted">{{toEmail}}</p>
+
+    <h2 class="section-title">Summary</h2>
+    <p class="summary">{{summary}}</p>
+
+    <p class="footer">Generated on {{generatedAt}}</p>
+  </body>
+</html>
+`;
+
 async function exists(filePath: string): Promise<boolean> {
   try {
     await access(filePath, fsConstants.F_OK);
@@ -98,6 +176,13 @@ async function main() {
     console.log("Created templates/pdf/basic.html");
   } else {
     console.log("Skipped templates/pdf/basic.html (already exists)");
+  }
+
+  if (!(await exists(nativeTemplatePath))) {
+    await writeFile(nativeTemplatePath, nativeHtmlTemplate, "utf8");
+    console.log("Created templates/pdf/native.html");
+  } else {
+    console.log("Skipped templates/pdf/native.html (already exists)");
   }
 
   console.log("PDF endpoint is ready at /api/pdf");

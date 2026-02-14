@@ -1,7 +1,7 @@
 import { access } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import path from "node:path";
-import { generatePdfBuffer, prewarmPdfEngine } from "./pdf";
+import { generatePdfBuffer, prewarmPdfEngine, type PdfEngine } from "./pdf";
 import { renderTemplateFile, renderTemplateString, type TemplateData } from "./template";
 
 export type PdfRequestBody = {
@@ -9,6 +9,7 @@ export type PdfRequestBody = {
   templatePath?: string;
   templateKey?: string;
   filename?: string;
+  engine?: PdfEngine;
 };
 
 export type ResolveTemplateContext = {
@@ -20,6 +21,7 @@ export type ResolveTemplateContext = {
 export type CreatePdfRouteHandlerOptions = {
   templatesDir?: string;
   defaultTemplate?: string;
+  defaultEngine?: PdfEngine;
   prewarm?: boolean;
   poolSize?: number;
   resolveTemplate?: (context: ResolveTemplateContext) => Promise<string | null>;
@@ -30,9 +32,10 @@ const DEFAULT_TEMPLATE_NAME = "basic.html";
 export function createPdfRouteHandler(options: CreatePdfRouteHandlerOptions = {}) {
   const templatesDir = options.templatesDir ?? path.join(process.cwd(), "templates", "pdf");
   const defaultTemplate = options.defaultTemplate ?? DEFAULT_TEMPLATE_NAME;
+  const defaultEngine = options.defaultEngine ?? "chromium";
   const prewarm = options.prewarm ?? true;
 
-  if (prewarm) {
+  if (prewarm && defaultEngine === "chromium") {
     void prewarmPdfEngine({ poolSize: options.poolSize });
   }
 
@@ -40,6 +43,7 @@ export function createPdfRouteHandler(options: CreatePdfRouteHandlerOptions = {}
     try {
       const body = (await request.json()) as PdfRequestBody;
       const filename = body.filename || "document.pdf";
+      const engine = body.engine ?? defaultEngine;
       const resolvedTemplate = options.resolveTemplate
         ? await options.resolveTemplate({
             body,
@@ -68,7 +72,10 @@ export function createPdfRouteHandler(options: CreatePdfRouteHandlerOptions = {}
         html = await renderTemplateFile(safeTemplatePath, body.data ?? {});
       }
 
-      const pdfBuffer = await generatePdfBuffer({ html });
+      const pdfBuffer = await generatePdfBuffer({
+        html,
+        engine
+      });
 
       return new Response(new Uint8Array(pdfBuffer), {
         status: 200,

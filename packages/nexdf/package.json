@@ -41,6 +41,8 @@
   },
   "dependencies": {
     "handlebars": "^4.7.8",
+    "node-html-parser": "^7.0.1",
+    "pdf-lib": "^1.17.1",
     "puppeteer-core": "^24.2.0"
   },
   "devDependencies": {
